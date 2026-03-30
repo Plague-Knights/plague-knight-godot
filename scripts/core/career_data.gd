@@ -64,7 +64,10 @@ func load_save() -> void:
 	lifetime_infected = data.get("lifetime_infected", 0)
 	unlocked_mutations = Array(data.get("unlocked_mutations", []), TYPE_STRING, "", null)
 	claimed_quests = Array(data.get("claimed_quests", []), TYPE_STRING, "", null)
-	leaderboard = data.get("leaderboard", [])
+	var lb: Array = data.get("leaderboard", [])
+	leaderboard.clear()
+	for entry in lb:
+		leaderboard.append(entry)
 	daily_streak = data.get("daily_streak", 0)
 	last_play_date = data.get("last_play_date", "")
 	daily_free_key_claimed = data.get("daily_free_key_claimed", false)
