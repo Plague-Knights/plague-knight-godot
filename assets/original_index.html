@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>Plague Knight: Vector</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <!-- Auth Screen Overlay -->
+  <div id="auth-screen">
+    <div class="auth-inner">
+      <div class="auth-title">Plague Knight: Vector</div>
+      <div class="auth-subtitle">Connect your wallet or enter as a guest</div>
+      <div id="auth-step-connect" class="auth-step">
+        <button class="auth-btn auth-btn-wallet" id="auth-wallet-btn">
+          <span class="auth-wallet-icon">&#9670;</span> Connect Wallet
+        </button>
+        <div class="auth-divider"><span>or</span></div>
+        <button class="auth-btn auth-btn-guest" id="auth-guest-btn">Play as Guest</button>
+        <div id="auth-wallet-error" class="auth-error"></div>
+      </div>
+      <div id="auth-step-nickname" class="auth-step hidden">
+        <div class="auth-connected-info" id="auth-connected-info"></div>
+        <div class="auth-nickname-label">Choose a Nickname</div>
+        <input type="text" id="auth-nickname-field" class="auth-nickname-input" maxlength="15" placeholder="PlagueKnight" autocomplete="off">
+        <button class="auth-btn auth-btn-enter" id="auth-enter-btn">Enter the Plague</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="hud">
+    <div class="hud-item">
+      <span class="hud-label">Energy</span>
+      <span class="hud-value hud-energy" id="hud-energy">15</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Power</span>
+      <span class="hud-value hud-power" id="hud-power">0</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Infected</span>
+      <span class="hud-value hud-infected" id="hud-infected">0</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Town</span>
+      <span class="hud-value hud-town" id="hud-town">1</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Wanted</span>
+      <span class="hud-value hud-wanted" id="hud-wanted">-</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Pills</span>
+      <span class="hud-value hud-pills" id="hud-pills">0</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Turn</span>
+      <span class="hud-value hud-turn" id="hud-turn">0</span>
+    </div>
+    <div class="hud-item hud-player-name" id="hud-player-name" style="display:none">
+      <span class="hud-label">Player</span>
+      <span class="hud-value hud-nickname" id="hud-nickname"></span>
+    </div>
+  </div>
+
+  <canvas id="game-canvas" width="720" height="720"></canvas>
+
+  <div id="overlay">
+    <div class="overlay-title">Plague Knight: Vector</div>
+    <div class="overlay-subtitle">Spread the plague. Town by town.</div>
+    <div class="overlay-stats" id="overlay-stats"></div>
+    <div id="overlay-xp" class="overlay-xp"></div>
+    <div id="overlay-initials" class="overlay-initials hidden">
+      <div class="initials-prompt">NEW HIGH SCORE! Enter your initials:</div>
+      <div class="initials-input">
+        <input type="text" id="initials-field" maxlength="3" placeholder="AAA" autocomplete="off">
+        <button class="overlay-btn initials-btn" id="initials-submit">Submit</button>
+      </div>
+    </div>
+    <div id="overlay-leaderboard" class="overlay-leaderboard"></div>
+    <div id="player-info-bar" class="player-info-bar" style="display:none">
+      <span class="player-info-name" id="player-info-name"></span>
+      <span class="player-info-address" id="player-info-address"></span>
+      <span class="player-info-balance" id="player-info-balance"></span>
+      <span class="player-info-network" id="player-info-network"></span>
+      <a href="#" class="player-info-edit" id="player-info-edit">Edit</a>
+      <a href="#" class="player-info-signout" id="player-info-signout">Sign Out</a>
+    </div>
+    <div class="economy-bar">
+      <span class="economy-keys" id="economy-keys">Keys: 3</span>
+      <span class="economy-daily-key" id="economy-daily-key" style="display:none">Free Daily Key Available!</span>
+      <span class="economy-streak" id="economy-streak" style="display:none">Daily Streak: 0 runs</span>
+    </div>
+    <button class="overlay-btn" id="start-btn">Begin Infection</button>
+    <div class="economy-actions">
+      <button class="overlay-btn overlay-btn-secondary" id="quests-btn">Quests</button>
+      <button class="overlay-btn overlay-btn-secondary overlay-btn-convert" id="convert-pts-btn">Convert 500 pts &rarr; 1 key</button>
+      <span class="convert-info" id="convert-info">0 / 500 pts</span>
+    </div>
+    <button class="overlay-btn overlay-btn-secondary" id="mutations-btn">Mutations</button>
+    <button class="overlay-btn overlay-btn-secondary" id="leaderboard-btn">Leaderboard</button>
+  </div>
+
+  <!-- Quest Modal -->
+  <div id="quest-modal" class="hidden">
+    <div class="quest-modal-inner">
+      <div class="quest-header">
+        <div class="quest-title">Season Quests</div>
+        <button class="quest-close" id="quest-close">&times;</button>
+      </div>
+      <div class="quest-list" id="quest-list"></div>
+    </div>
+  </div>
+
+  <!-- Mutation Tree Modal -->
+  <div id="mutation-modal" class="hidden">
+    <div class="mutation-modal-inner">
+      <div class="mutation-header">
+        <div class="mutation-title">Mutation Tree</div>
+        <div class="mutation-xp-display">XP: <span id="mutation-xp">0</span> / 42,000</div>
+        <button class="mutation-close" id="mutation-close">&times;</button>
+      </div>
+      <div class="mutation-tree" id="mutation-tree"></div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Modal -->
+  <div id="leaderboard-modal" class="hidden">
+    <div class="leaderboard-modal-inner">
+      <div class="leaderboard-header">
+        <div class="leaderboard-title">Hall of Plague</div>
+        <button class="leaderboard-close" id="leaderboard-close">&times;</button>
+      </div>
+      <div class="leaderboard-table" id="leaderboard-table"></div>
+    </div>
+  </div>
+
+  <!-- Edit Nickname Modal -->
+  <div id="edit-nickname-modal" class="hidden">
+    <div class="edit-nickname-inner">
+      <div class="auth-nickname-label">Change Nickname</div>
+      <input type="text" id="edit-nickname-field" class="auth-nickname-input" maxlength="15" placeholder="PlagueKnight" autocomplete="off">
+      <button class="auth-btn auth-btn-enter" id="edit-nickname-save">Save</button>
+      <button class="auth-btn auth-btn-guest" id="edit-nickname-cancel" style="margin-top:8px">Cancel</button>
+    </div>
+  </div>
+
+  <div id="upgrade-panel" class="hidden">
+    <div class="upgrade-title">Choose an Upgrade</div>
+    <div id="upgrade-cards"></div>
+  </div>
+
+  <canvas id="minimap" width="48" height="48"></canvas>
+  <div id="tile-tooltip"></div>
+  <div id="floating-numbers"></div>
+  <div id="tutorial-overlay" class="hidden">
+    <div class="tutorial-box">
+      <div class="tutorial-line">Arrow keys / WASD to move</div>
+      <div class="tutorial-line">Walk into buildings to infect them</div>
+      <div class="tutorial-line">Find the horse cart to reach the next town</div>
+      <div class="tutorial-dismiss">Click anywhere to dismiss</div>
+    </div>
+  </div>
+  <div id="log"></div>
+  <div id="controls-hint">WASD / Arrow Keys to move / Click tiles to interact</div>
+
+  <!-- Mobile D-Pad -->
+  <div id="dpad" class="dpad-hidden">
+    <button class="dpad-btn dpad-up" data-dir="up">&#9650;</button>
+    <button class="dpad-btn dpad-left" data-dir="left">&#9664;</button>
+    <button class="dpad-btn dpad-center" data-dir="wait">&#9632;</button>
+    <button class="dpad-btn dpad-right" data-dir="right">&#9654;</button>
+    <button class="dpad-btn dpad-down" data-dir="down">&#9660;</button>
+  </div>
+
+  <script src="sprites.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
