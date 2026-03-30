@@ -1,28 +1,43 @@
-## Renders the 12x12 tile grid with fog of war and building type colors
+## Renders the 12x12 tile grid with pixel art sprites and fog of war
 extends Node2D
 
-const TILE_COLORS := {
-	TownGenerator.Tile.EMPTY:      Color(0.08, 0.08, 0.10),  # dark stone wall
-	TownGenerator.Tile.ROAD:       Color(0.38, 0.32, 0.24),
-	TownGenerator.Tile.DOOR:       Color(0.60, 0.50, 0.30),
-	TownGenerator.Tile.INFECTED:   Color(0.22, 0.52, 0.12),
-	TownGenerator.Tile.TRAP:       Color(0.38, 0.32, 0.24),  # hidden as road
-	TownGenerator.Tile.HAND_CART:  Color(0.72, 0.52, 0.22),
-	TownGenerator.Tile.VIRUS:      Color(0.20, 0.78, 0.28),
-	TownGenerator.Tile.PILL:       Color(0.78, 0.28, 0.48),
-	TownGenerator.Tile.HORSE_CART: Color(0.30, 0.48, 0.78),
-}
+# Tile textures
+var tex_road: Texture2D
+var tex_wall: Texture2D
+var tex_grass: Texture2D
+var tex_door: Texture2D
+var tex_trap: Texture2D
+var tex_handcart: Texture2D
+var tex_virus: Texture2D
+var tex_pill: Texture2D
+var tex_horse_cart: Texture2D
+var tex_town_center: Texture2D
 
-const BUILDING_COLORS := {
-	"small_house": Color(0.52, 0.38, 0.24),
-	"large_house": Color(0.48, 0.32, 0.20),
-	"manor":       Color(0.55, 0.22, 0.22),
-	"pub":         Color(0.58, 0.48, 0.22),
-	"shop":        Color(0.24, 0.44, 0.44),
-}
+# Building textures by type
+var tex_buildings: Dictionary = {}
 
 const FOG_COLOR := Color(0.02, 0.02, 0.04)
-const EXPLORED_DIM := 0.55  # darken factor for explored-but-not-visible
+const EXPLORED_DIM := 0.45
+const INFECTED_TINT := Color(0.2, 0.75, 0.2, 0.55)
+
+func _ready() -> void:
+	tex_road = load("res://assets/extracted/road.png")
+	tex_wall = load("res://assets/extracted/wall.png")
+	tex_grass = load("res://assets/extracted/grass.png")
+	tex_door = load("res://assets/extracted/door.png")
+	tex_trap = load("res://assets/extracted/road.png")  # hidden as road
+	tex_handcart = load("res://assets/extracted/handcart.png")
+	tex_virus = load("res://assets/extracted/virus.png")
+	tex_pill = load("res://assets/extracted/plaguePill.png")
+	tex_horse_cart = load("res://assets/extracted/horseCart.png")
+	tex_town_center = load("res://assets/extracted/townCenter.png")
+	tex_buildings = {
+		"small_house": load("res://assets/extracted/building1.png"),
+		"large_house": load("res://assets/extracted/building2.png"),
+		"manor":       load("res://assets/extracted/building3.png"),
+		"pub":         load("res://assets/extracted/pub.png"),
+		"shop":        load("res://assets/extracted/shop.png"),
+	}
 
 func _draw() -> void:
 	var gm: Node2D = get_parent()
@@ -42,60 +57,66 @@ func _draw() -> void:
 				continue
 
 			var tile: int = grid[y][x]
-			var color: Color
+			var tex: Texture2D = _get_tile_texture(tile, x, y, gm)
 
-			# Building tiles use per-type color
-			if tile == TownGenerator.Tile.BUILDING:
-				var bidx: int = gm.town_gen.building_map[y][x]
-				if bidx >= 0:
-					var btype: String = gm.town_gen.building_data[bidx].type
-					color = BUILDING_COLORS.get(btype, Color(0.45, 0.30, 0.18))
+			if tex:
+				if is_visible:
+					draw_texture_rect(tex, rect, false)
 				else:
-					color = Color(0.45, 0.30, 0.18)
+					draw_texture_rect(tex, rect, false, Color(EXPLORED_DIM, EXPLORED_DIM, EXPLORED_DIM))
 			else:
-				color = TILE_COLORS.get(tile, Color.BLACK)
+				# Fallback colored rect
+				var color := Color(0.08, 0.08, 0.10)
+				if not is_visible:
+					color = color.darkened(EXPLORED_DIM)
+				draw_rect(rect, color)
 
-			# Dim explored-but-not-visible tiles
-			if not is_visible:
-				color = color.darkened(EXPLORED_DIM)
-
-			draw_rect(rect, color)
-
-			# Subtle grid lines on visible tiles
-			if is_visible:
-				draw_rect(rect, Color(0, 0, 0, 0.12), false, 1.0)
-
-			# Building type indicator letter (visible only)
-			if is_visible and tile == TownGenerator.Tile.BUILDING:
+			# Infected overlay
+			if tile == TownGenerator.Tile.INFECTED:
+				# Draw the building texture underneath first, then green overlay
 				var bidx: int = gm.town_gen.building_map[y][x]
 				if bidx >= 0:
 					var btype: String = gm.town_gen.building_data[bidx].type
-					var letter: String = _building_letter(btype)
-					var center := Vector2(x * ts + ts * 0.5 - 4, y * ts + ts * 0.5 + 5)
-					draw_string(ThemeDB.fallback_font, center, letter,
-						HORIZONTAL_ALIGNMENT_CENTER, -1, 13, Color(1, 1, 1, 0.5))
+					var btex: Texture2D = tex_buildings.get(btype)
+					if btex:
+						if is_visible:
+							draw_texture_rect(btex, rect, false)
+						else:
+							draw_texture_rect(btex, rect, false, Color(EXPLORED_DIM, EXPLORED_DIM, EXPLORED_DIM))
+				if is_visible:
+					draw_rect(rect, INFECTED_TINT)
+				else:
+					draw_rect(rect, Color(0.1, 0.35, 0.1, 0.4))
 
-			# Item icons on visible tiles
-			if is_visible and tile in [TownGenerator.Tile.HAND_CART, TownGenerator.Tile.VIRUS,
-					TownGenerator.Tile.PILL, TownGenerator.Tile.HORSE_CART]:
-				var icon: String = _item_icon(tile)
-				var center := Vector2(x * ts + ts * 0.5 - 4, y * ts + ts * 0.5 + 5)
-				draw_string(ThemeDB.fallback_font, center, icon,
-					HORIZONTAL_ALIGNMENT_CENTER, -1, 16, Color.WHITE)
-
-func _building_letter(btype: String) -> String:
-	match btype:
-		"small_house": return "h"
-		"large_house": return "H"
-		"manor":       return "M"
-		"pub":         return "P"
-		"shop":        return "$"
-	return "?"
-
-func _item_icon(tile: int) -> String:
+func _get_tile_texture(tile: int, x: int, y: int, gm: Node2D) -> Texture2D:
 	match tile:
-		TownGenerator.Tile.HAND_CART:  return "+"
-		TownGenerator.Tile.VIRUS:      return "V"
-		TownGenerator.Tile.PILL:       return "o"
-		TownGenerator.Tile.HORSE_CART: return ">"
-	return ""
+		TownGenerator.Tile.EMPTY:
+			return tex_wall
+		TownGenerator.Tile.ROAD:
+			# Check if this is town center area
+			var cx := GameData.GRID_SIZE / 2
+			var cy := GameData.GRID_SIZE / 2
+			if absi(x - cx) <= 1 and absi(y - cy) <= 1:
+				return tex_town_center
+			return tex_road
+		TownGenerator.Tile.BUILDING:
+			var bidx: int = gm.town_gen.building_map[y][x]
+			if bidx >= 0:
+				var btype: String = gm.town_gen.building_data[bidx].type
+				return tex_buildings.get(btype, tex_wall)
+			return tex_wall
+		TownGenerator.Tile.DOOR:
+			return tex_door
+		TownGenerator.Tile.INFECTED:
+			return tex_grass  # base layer, overlay drawn separately
+		TownGenerator.Tile.TRAP:
+			return tex_trap
+		TownGenerator.Tile.HAND_CART:
+			return tex_handcart
+		TownGenerator.Tile.VIRUS:
+			return tex_virus
+		TownGenerator.Tile.PILL:
+			return tex_pill
+		TownGenerator.Tile.HORSE_CART:
+			return tex_horse_cart
+	return null

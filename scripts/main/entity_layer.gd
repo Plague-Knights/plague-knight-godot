@@ -1,44 +1,46 @@
-## Renders entities (player + enemies) on the grid, respecting fog of war
+## Renders entities (player + enemies) with pixel art sprites, respecting fog of war
 extends Node2D
 
-const ENTITY_COLORS := {
-	"civilian":    Color(0.70, 0.70, 0.60),
-	"watchman":    Color(0.90, 0.55, 0.20),
-	"patrol":      Color(0.90, 0.25, 0.25),
-	"gatekeeper":  Color(0.80, 0.20, 0.50),
-	"town_guard":  Color(0.95, 0.10, 0.10),
-	"night_watch": Color(0.50, 0.20, 0.80),
-	"vault_keeper":Color(0.90, 0.80, 0.20),
-}
+var tex_entities: Dictionary = {}
 
-const PLAYER_COLOR := Color(0.15, 0.90, 0.90)
+func _ready() -> void:
+	tex_entities = {
+		"player":      load("res://assets/extracted/player.png"),
+		"civilian":    load("res://assets/extracted/civilian.png"),
+		"watchman":    load("res://assets/extracted/watchman.png"),
+		"patrol":      load("res://assets/extracted/patrol.png"),
+		"gatekeeper":  load("res://assets/extracted/gatekeeper.png"),
+		"town_guard":  load("res://assets/extracted/townGuard.png"),
+		"night_watch": load("res://assets/extracted/nightWatch.png"),
+		"vault_keeper":load("res://assets/extracted/vaultKeeper.png"),
+	}
 
 func _draw() -> void:
 	var gm: Node2D = get_parent()
 	if not gm.game_state:
 		return
 	var ts: int = GameData.TILE_SIZE
-	var half := ts * 0.5
-	var radius := ts * 0.32
 
 	# Entities - only draw if on a visible tile
 	for i in gm.entities.size():
 		var entity: Dictionary = gm.entities[i]
 		if not gm.fog_visible[entity.y][entity.x]:
 			continue
-		var color: Color = ENTITY_COLORS.get(entity.type, Color.WHITE)
-		if entity.get("stunned", 0) > 0:
-			color = color.darkened(0.5)
-		var center := Vector2(entity.x * ts + half, entity.y * ts + half)
-		draw_circle(center, radius, color)
-		var letter: String = entity.type[0].to_upper()
-		draw_string(ThemeDB.fallback_font, center + Vector2(-5, 5), letter,
-			HORIZONTAL_ALIGNMENT_CENTER, -1, 14, Color.WHITE)
+		var tex: Texture2D = tex_entities.get(entity.type)
+		var rect := Rect2(entity.x * ts, entity.y * ts, ts, ts)
+		if tex:
+			if entity.get("stunned", 0) > 0:
+				draw_texture_rect(tex, rect, false, Color(0.4, 0.4, 0.6))
+			else:
+				draw_texture_rect(tex, rect, false)
+		else:
+			# Fallback circle
+			var center := Vector2(entity.x * ts + ts * 0.5, entity.y * ts + ts * 0.5)
+			draw_circle(center, ts * 0.32, Color.RED)
 
 	# Player (always visible)
 	var pp: Vector2i = gm.game_state.player_pos
-	var pc: Vector2 = Vector2(pp.x * ts + half, pp.y * ts + half)
-	draw_circle(pc, radius + 2, Color.WHITE)
-	draw_circle(pc, radius, PLAYER_COLOR)
-	draw_string(ThemeDB.fallback_font, pc + Vector2(-5, 5), "P",
-		HORIZONTAL_ALIGNMENT_CENTER, -1, 14, Color.BLACK)
+	var player_rect := Rect2(pp.x * ts, pp.y * ts, ts, ts)
+	var player_tex: Texture2D = tex_entities.get("player")
+	if player_tex:
+		draw_texture_rect(player_tex, player_rect, false)
