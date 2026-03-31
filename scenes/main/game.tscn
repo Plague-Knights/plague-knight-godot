@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/main/game_manager.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/main/grid_display.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/main/entity_layer.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/ui/touch_controls.gd" id="5"]
 [ext_resource type="Theme" path="res://assets/theme/plague_theme.tres" id="4"]
 
 [node name="Game" type="Node2D"]
@@ -80,3 +81,6 @@ theme_override_font_sizes/font_size = 7
 text = ""
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="TouchControls" type="CanvasLayer" parent="."]
+script = ExtResource("5")

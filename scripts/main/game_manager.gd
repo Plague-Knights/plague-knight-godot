@@ -115,6 +115,9 @@ func _refresh_display() -> void:
 # --- Input ---
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_fullscreen"):
+		_toggle_fullscreen()
+		return
 	if game_over:
 		return
 	var dir := Vector2i.ZERO
@@ -283,6 +286,12 @@ func _process_entities() -> void:
 				_ai_chase(entity)
 			"vault_keeper":
 				_ai_flee(entity)
+			"watchman":
+				_ai_watchman(entity)
+			"gatekeeper":
+				_ai_chase(entity)  # gatekeepers always chase
+			"civilian":
+				_ai_civilian(entity)
 
 func _ai_chase(entity: Dictionary) -> void:
 	var epos := Vector2i(entity.x, entity.y)
@@ -300,6 +309,69 @@ func _ai_chase(entity: Dictionary) -> void:
 				_show_message("%s attacks! -%d Energy" % [
 					entity.type.replace("_", " ").capitalize(), cost.energy])
 	elif town_gen.rng.randf() < GameData.PATROL_DIRECTION_CHANGE:
+		var dirs := [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
+		var dir: Vector2i = dirs[town_gen.rng.randi_range(0, 3)]
+		var target := epos + dir
+		if _in_bounds(target) and _is_walkable(target):
+			entity.x = target.x
+			entity.y = target.y
+
+func _ai_watchman(entity: Dictionary) -> void:
+	var epos := Vector2i(entity.x, entity.y)
+	var ppos := game_state.player_pos
+	var dist := absi(ppos.x - epos.x) + absi(ppos.y - epos.y)
+	# Town 1-2: watchmen are static sentries
+	# Town 3+: watchmen patrol and chase within 3 tiles
+	# Town 5+: watchmen chase within 5 tiles
+	if game_state.town_num < 3:
+		return
+	var vision := 3 if game_state.town_num < 5 else 5
+	if dist <= vision:
+		# Chase player
+		var dir := _step_toward(epos, ppos)
+		var target := epos + dir
+		if _in_bounds(target) and _is_walkable(target) and _entity_at(target) < 0:
+			entity.x = target.x
+			entity.y = target.y
+			if Vector2i(entity.x, entity.y) == ppos:
+				var cost: Dictionary = GameData.ENTITY_COSTS["watchman"]
+				game_state.energy -= cost.energy
+				_show_message("Watchman attacks! -%d Energy" % cost.energy)
+	elif town_gen.rng.randf() < 0.2:
+		# Slow random patrol
+		var dirs := [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
+		var dir: Vector2i = dirs[town_gen.rng.randi_range(0, 3)]
+		var target := epos + dir
+		if _in_bounds(target) and _is_walkable(target):
+			entity.x = target.x
+			entity.y = target.y
+
+func _ai_civilian(entity: Dictionary) -> void:
+	var epos := Vector2i(entity.x, entity.y)
+	var ppos := game_state.player_pos
+	var dist := absi(ppos.x - epos.x) + absi(ppos.y - epos.y)
+	# Town 1-2: civilians stand still
+	# Town 3+: civilians flee when player is close (within 2 tiles)
+	# Town 5+: civilians flee faster and from further (3 tiles)
+	if game_state.town_num < 3:
+		return
+	var flee_range := 2 if game_state.town_num < 5 else 3
+	if dist <= flee_range:
+		# Run away from player
+		var dir := _step_toward(epos, ppos)
+		var away := epos - dir
+		if _in_bounds(away) and _is_walkable(away) and _entity_at(away) < 0:
+			entity.x = away.x
+			entity.y = away.y
+		else:
+			# Try perpendicular escape
+			var perp := Vector2i(dir.y, dir.x)
+			var alt := epos + perp
+			if _in_bounds(alt) and _is_walkable(alt) and _entity_at(alt) < 0:
+				entity.x = alt.x
+				entity.y = alt.y
+	elif town_gen.rng.randf() < 0.1:
+		# Occasional wander
 		var dirs := [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
 		var dir: Vector2i = dirs[town_gen.rng.randi_range(0, 3)]
 		var target := epos + dir
@@ -414,6 +486,12 @@ func _show_message(text: String) -> void:
 	)
 
 # --- Utilities ---
+
+func _toggle_fullscreen() -> void:
+	if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	else:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 func _in_bounds(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < GameData.GRID_SIZE and pos.y >= 0 and pos.y < GameData.GRID_SIZE

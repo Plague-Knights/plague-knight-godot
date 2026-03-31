@@ -11,8 +11,8 @@
   const PLAGUE_KEYS = "0xc359b0a6622aD6520Ee5A47a2dea496A929B7C57";
   const PLAGUE_JACKPOT = "0xcDDB693CEA9424DA5024aCE130c7DFcDAB929941";
 
-  // API URL — set to your Railway deployment
-  const API_URL = window.PLAGUE_API_URL || "http://localhost:3000";
+  // API URL — same origin when hosted in Next.js, override for local dev
+  const API_URL = window.PLAGUE_API_URL || "";
 
   const KEYS_ABI = [
     "function balanceOf(address) view returns (uint256)",

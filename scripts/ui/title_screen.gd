@@ -53,11 +53,20 @@ func _ready() -> void:
 	elif auth.mode == AuthManager.Mode.GUEST:
 		keys_label.text = "Keys: %d" % auth.key_balance
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_fullscreen"):
+		if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+		else:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+
 # --- Button Handlers ---
 
 func _on_guest_pressed() -> void:
+	# Close any open panel first
 	if showing_panel:
-		return
+		_close_panel()
+		_close_active_panel()
 	if auth.mode == AuthManager.Mode.GUEST:
 		auth.start_guest()
 		auth.key_balance = GameData.STARTING_KEYS
@@ -213,12 +222,16 @@ func _show_panel(title_text: String, content_text: String) -> void:
 
 func _close_panel() -> void:
 	overlay.visible = false
+	if active_panel:
+		active_panel.queue_free()
+		active_panel = null
 	showing_panel = false
 
 func _close_active_panel() -> void:
 	if active_panel:
 		active_panel.queue_free()
 		active_panel = null
+	overlay.visible = false
 	showing_panel = false
 
 # --- Callbacks ---
