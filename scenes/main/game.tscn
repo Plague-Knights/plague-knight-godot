@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/main/game_manager.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/main/grid_display.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/main/entity_layer.gd" id="3"]
+[ext_resource type="Theme" path="res://assets/theme/plague_theme.tres" id="4"]
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1")
@@ -14,46 +15,68 @@ script = ExtResource("2")
 script = ExtResource("3")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(384, 384)
-zoom = Vector2(0.9, 0.9)
+position = Vector2(192, 192)
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
-[node name="TopBar" type="HBoxContainer" parent="HUD"]
+[node name="TopPanel" type="PanelContainer" parent="HUD"]
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = 10.0
-offset_top = 8.0
-offset_right = -10.0
-offset_bottom = 36.0
-theme_override_constants/separation = 24
+offset_bottom = 18.0
+theme = ExtResource("4")
 
-[node name="EnergyLabel" type="Label" parent="HUD/TopBar"]
-text = "Energy: 15/15"
+[node name="TopBar" type="HBoxContainer" parent="HUD/TopPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
 
-[node name="PowerLabel" type="Label" parent="HUD/TopBar"]
-text = "Power: 7"
+[node name="EnergyLabel" type="Label" parent="HUD/TopPanel/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 7
+text = "ENERGY 15"
 
-[node name="WantedLabel" type="Label" parent="HUD/TopBar"]
-text = "Wanted: 0"
+[node name="PowerLabel" type="Label" parent="HUD/TopPanel/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.75, 0.25, 1)
+theme_override_font_sizes/font_size = 7
+text = "POWER 7"
 
-[node name="TownLabel" type="Label" parent="HUD/TopBar"]
-text = "Town: 1"
+[node name="WantedLabel" type="Label" parent="HUD/TopPanel/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.3, 0.2, 1)
+theme_override_font_sizes/font_size = 7
+text = "WANTED --"
 
-[node name="TurnLabel" type="Label" parent="HUD/TopBar"]
-text = "Turn: 0"
+[node name="TownLabel" type="Label" parent="HUD/TopPanel/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.55, 0.45, 1)
+theme_override_font_sizes/font_size = 7
+text = "TOWN 1"
 
-[node name="ScoreLabel" type="Label" parent="HUD/TopBar"]
-text = "Score: 0"
+[node name="TurnLabel" type="Label" parent="HUD/TopPanel/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.5, 0.45, 1)
+theme_override_font_sizes/font_size = 7
+text = "TURN 0"
 
-[node name="MessageLabel" type="Label" parent="HUD"]
-anchors_preset = 7
-anchor_left = 0.5
+[node name="ScoreLabel" type="Label" parent="HUD/TopPanel/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.7, 0.9, 1)
+theme_override_font_sizes/font_size = 7
+text = "SCORE 0"
+
+[node name="BottomPanel" type="PanelContainer" parent="HUD"]
+anchors_preset = 12
 anchor_top = 1.0
-anchor_right = 0.5
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -250.0
-offset_top = -50.0
-offset_right = 250.0
+offset_top = -18.0
+theme = ExtResource("4")
+
+[node name="MessageLabel" type="Label" parent="HUD/BottomPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.3, 0.2, 1)
+theme_override_font_sizes/font_size = 7
+text = ""
 horizontal_alignment = 1
 vertical_alignment = 1

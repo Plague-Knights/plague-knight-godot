@@ -6,6 +6,8 @@ var career_data: CareerData
 var town_gen: TownGenerator
 var entities: Array = []  # { type, x, y, stunned? }
 var game_over := false
+var auth: AuthManager = null
+var game_over_screen: Control = null
 
 # Fog of war
 var fog_visible: Array = []   # 2D bool - currently in line of sight
@@ -14,18 +16,21 @@ var fog_explored: Array = []  # 2D bool - seen at least once this town
 @onready var grid_display: Node2D = $GridDisplay
 @onready var entity_layer: Node2D = $EntityLayer
 @onready var camera: Camera2D = $Camera2D
-@onready var energy_label: Label = $HUD/TopBar/EnergyLabel
-@onready var power_label: Label = $HUD/TopBar/PowerLabel
-@onready var wanted_label: Label = $HUD/TopBar/WantedLabel
-@onready var town_label: Label = $HUD/TopBar/TownLabel
-@onready var turn_label: Label = $HUD/TopBar/TurnLabel
-@onready var score_label: Label = $HUD/TopBar/ScoreLabel
-@onready var message_label: Label = $HUD/MessageLabel
+@onready var energy_label: Label = $HUD/TopPanel/TopBar/EnergyLabel
+@onready var power_label: Label = $HUD/TopPanel/TopBar/PowerLabel
+@onready var wanted_label: Label = $HUD/TopPanel/TopBar/WantedLabel
+@onready var town_label: Label = $HUD/TopPanel/TopBar/TownLabel
+@onready var turn_label: Label = $HUD/TopPanel/TopBar/TurnLabel
+@onready var score_label: Label = $HUD/TopPanel/TopBar/ScoreLabel
+@onready var message_label: Label = $HUD/BottomPanel/MessageLabel
 
 func _ready() -> void:
 	career_data = CareerData.new()
 	career_data.load_save()
 	career_data.check_daily_reset()
+	# Get auth from title screen if available
+	if has_meta("auth_manager"):
+		auth = get_meta("auth_manager")
 	_start_run()
 
 func _start_run() -> void:
@@ -111,8 +116,6 @@ func _refresh_display() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if game_over:
-		if event.is_action_pressed("wait_turn"):
-			_start_run()
 		return
 	var dir := Vector2i.ZERO
 	if event.is_action_pressed("move_up"):    dir = Vector2i(0, -1)
@@ -353,17 +356,54 @@ func _on_player_died() -> void:
 	if game_state.turn <= GameData.MERCY_REFUND_TURNS:
 		career_data.keys += 1
 	career_data.save()
-	_show_message("GAME OVER! Score: %d  [Space to restart]" % game_state.get_score())
+	# Submit score on-chain if wallet connected
+	if auth and auth.mode == AuthManager.Mode.WALLET and auth.blockchain.current_run_id != "":
+		var score := game_state.get_score()
+		var town := game_state.town_num
+		var moves := game_state.total_moves
+		# Integrity hash: runId:score:town:moves
+		var payload := "%s:%d:%d:%d" % [auth.blockchain.current_run_id, score, town, moves]
+		var integrity_hash := payload.sha256_text()
+		auth.submit_score(score, town, moves, integrity_hash)
+	_show_game_over()
+
+func _show_game_over() -> void:
+	var screen := Control.new()
+	screen.set_script(preload("res://scripts/ui/game_over_screen.gd"))
+	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	screen.setup(game_state, career_data)
+	screen.try_again.connect(_on_try_again)
+	screen.go_to_title.connect(_on_go_to_title)
+	# Add to HUD layer so it renders above the game
+	$HUD.add_child(screen)
+	game_over_screen = screen
+
+func _on_try_again() -> void:
+	if game_over_screen:
+		game_over_screen.queue_free()
+		game_over_screen = null
+	_start_run()
+
+func _on_go_to_title() -> void:
+	var title_scene: PackedScene = load("res://scenes/ui/title_screen.tscn")
+	var title_inst: Control = title_scene.instantiate()
+	if auth:
+		title_inst.set_meta("auth_manager", auth)
+	get_tree().root.add_child(title_inst)
+	queue_free()
 
 # --- HUD ---
 
 func _update_hud() -> void:
-	energy_label.text = "Energy: %d/%d" % [game_state.energy, game_state.max_energy]
-	power_label.text = "Power: %d" % game_state.power
-	wanted_label.text = "Wanted: %d" % game_state.wanted_level
-	town_label.text = "Town: %d" % game_state.town_num
-	turn_label.text = "Turn: %d" % game_state.turn
-	score_label.text = "Score: %d" % game_state.get_score()
+	energy_label.text = "ENERGY %d" % game_state.energy
+	power_label.text = "POWER %d" % game_state.power
+	var wanted_str := "--"
+	for i in game_state.wanted_level:
+		wanted_str = "*".repeat(game_state.wanted_level)
+	wanted_label.text = "WANTED %s" % wanted_str if game_state.wanted_level > 0 else "WANTED --"
+	town_label.text = "TOWN %d" % game_state.town_num
+	turn_label.text = "TURN %d" % game_state.turn
+	score_label.text = "SCORE %d" % game_state.get_score()
 
 func _show_message(text: String) -> void:
 	message_label.text = text

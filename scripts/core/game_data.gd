@@ -5,7 +5,7 @@ extends RefCounted
 
 # Grid
 const GRID_SIZE := 12
-const TILE_SIZE := 64  # pixels per tile
+const TILE_SIZE := 32  # pixels per tile (2x native 16px art, viewport scales 2x to window)
 
 # Player starting stats
 const START_ENERGY := 15

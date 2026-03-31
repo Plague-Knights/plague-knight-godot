@@ -1,0 +1,10 @@
+{
+  "name": "pk-game-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node serve.js",
+    "build": "echo 'Run Godot export first, then copy bridge.js to build/web/'"
+  }
+}
