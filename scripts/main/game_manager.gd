@@ -31,6 +31,11 @@ func _ready() -> void:
 	# Get auth from title screen if available
 	if has_meta("auth_manager"):
 		auth = get_meta("auth_manager")
+	# Connect touch controls signals
+	var touch := $TouchControls
+	if touch:
+		touch.direction_pressed.connect(_on_touch_direction)
+		touch.wait_pressed.connect(_on_touch_wait)
 	_start_run()
 
 func _start_run() -> void:
@@ -130,6 +135,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if dir != Vector2i.ZERO:
 		_try_move(dir)
+
+func _on_touch_direction(dir: Vector2i) -> void:
+	if game_over:
+		return
+	_try_move(dir)
+
+func _on_touch_wait() -> void:
+	if game_over:
+		return
+	_process_turn()
 
 func _try_move(dir: Vector2i) -> void:
 	var target := game_state.player_pos + dir
@@ -274,6 +289,7 @@ func _process_turn() -> void:
 	_process_entities()
 	_update_visibility()
 	_update_hud()
+	_refresh_display()
 
 func _process_entities() -> void:
 	for i in entities.size():
@@ -282,7 +298,7 @@ func _process_entities() -> void:
 			entity["stunned"] -= 1
 			continue
 		match entity.type:
-			"patrol", "night_watch":
+			"patrol", "night_watch", "town_guard":
 				_ai_chase(entity)
 			"vault_keeper":
 				_ai_flee(entity)

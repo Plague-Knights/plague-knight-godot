@@ -5,11 +5,12 @@ extends CanvasLayer
 var _font: Font = preload("res://assets/fonts/MedievalSharp-Regular.ttf")
 var _visible := false
 
+signal direction_pressed(dir: Vector2i)
+signal wait_pressed
+
 func _ready() -> void:
-	# Show only on touch devices (web mobile, tablets)
 	_visible = DisplayServer.is_touchscreen_available()
 	if not _visible and OS.has_feature("web"):
-		# Also check via JS for more reliable mobile detection
 		_visible = _check_mobile_web()
 	if _visible:
 		_build_controls()
@@ -21,75 +22,68 @@ func _check_mobile_web() -> bool:
 	return result == true
 
 func _build_controls() -> void:
-	# D-pad (bottom-left)
+	# Root control - passes input through to game
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(root)
+
+	# D-pad container (bottom-right)
 	var dpad := Control.new()
-	dpad.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	dpad.offset_left = 10
-	dpad.offset_top = -110
-	dpad.offset_right = 110
-	dpad.offset_bottom = -10
-	add_child(dpad)
+	dpad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dpad.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	dpad.offset_left = -176
+	dpad.offset_top = -180
+	dpad.offset_right = -16
+	dpad.offset_bottom = -16
+	root.add_child(dpad)
 
-	_add_dpad_btn(dpad, "move_up",    "^", 33, 0,  34, 30)
-	_add_dpad_btn(dpad, "move_down",  "v", 33, 70, 34, 30)
-	_add_dpad_btn(dpad, "move_left",  "<", 0,  30, 30, 40)
-	_add_dpad_btn(dpad, "move_right", ">", 70, 30, 30, 40)
+	_add_dpad_btn(dpad, Vector2i(0, -1), "^", 53, 0,  54, 50)
+	_add_dpad_btn(dpad, Vector2i(0, 1),  "v", 53, 114, 54, 50)
+	_add_dpad_btn(dpad, Vector2i(-1, 0), "<", 0,  52, 50, 60)
+	_add_dpad_btn(dpad, Vector2i(1, 0),  ">", 110, 52, 50, 60)
 
-	# Wait button (bottom-right)
-	var wait_btn := _make_action_btn("wait_turn", "Wait", 60, 30)
-	wait_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	wait_btn.offset_left = -75
-	wait_btn.offset_top = -45
-	wait_btn.offset_right = -15
-	wait_btn.offset_bottom = -15
-	add_child(wait_btn)
+	# Wait button (bottom-left)
+	var wait_btn := _make_btn("Wait", 80, 44, Color(0.15, 0.12, 0.08, 0.75),
+		Color(0.85, 0.75, 0.4, 0.95), 14)
+	wait_btn.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	wait_btn.offset_left = 16
+	wait_btn.offset_top = -60
+	wait_btn.offset_right = 96
+	wait_btn.offset_bottom = -16
+	wait_btn.pressed.connect(_on_wait_pressed)
+	root.add_child(wait_btn)
 
-func _add_dpad_btn(parent: Control, action: String, label: String, x: float, y: float, w: float, h: float) -> void:
-	var btn := TouchScreenButton.new()
+func _add_dpad_btn(parent: Control, dir: Vector2i, label: String, x: float, y: float, w: float, h: float) -> void:
+	var btn := _make_btn(label, w, h, Color(0.15, 0.15, 0.12, 0.75),
+		Color(0.5, 0.85, 0.4, 0.95), 18)
 	btn.position = Vector2(x, y)
-
-	# Create a visual shape
-	var rect := ColorRect.new()
-	rect.size = Vector2(w, h)
-	rect.color = Color(0.15, 0.15, 0.12, 0.6)
-	btn.add_child(rect)
-
-	var lbl := Label.new()
-	lbl.text = label
-	lbl.add_theme_font_override("font", _font)
-	lbl.add_theme_font_size_override("font_size", 10)
-	lbl.add_theme_color_override("font_color", Color(0.4, 0.7, 0.3, 0.8))
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.size = Vector2(w, h)
-	btn.add_child(lbl)
-
-	btn.action = action
-	btn.shape = RectangleShape2D.new()
-	(btn.shape as RectangleShape2D).size = Vector2(w, h)
-	btn.shape_centered = false
+	btn.pressed.connect(_on_dir_pressed.bind(dir))
 	parent.add_child(btn)
 
-func _make_action_btn(action: String, label: String, w: float, h: float) -> TouchScreenButton:
-	var btn := TouchScreenButton.new()
-
-	var rect := ColorRect.new()
-	rect.size = Vector2(w, h)
-	rect.color = Color(0.15, 0.12, 0.08, 0.6)
-	btn.add_child(rect)
-
-	var lbl := Label.new()
-	lbl.text = label
-	lbl.add_theme_font_override("font", _font)
-	lbl.add_theme_font_size_override("font_size", 8)
-	lbl.add_theme_color_override("font_color", Color(0.7, 0.6, 0.3, 0.8))
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.size = Vector2(w, h)
-	btn.add_child(lbl)
-
-	btn.action = action
-	btn.shape = RectangleShape2D.new()
-	(btn.shape as RectangleShape2D).size = Vector2(w, h)
-	btn.shape_centered = false
+func _make_btn(label: String, w: float, h: float, bg_color: Color, font_color: Color, font_size: int) -> Button:
+	var btn := Button.new()
+	btn.text = label
+	btn.custom_minimum_size = Vector2(w, h)
+	btn.size = Vector2(w, h)
+	btn.add_theme_font_override("font", _font)
+	btn.add_theme_font_size_override("font_size", font_size)
+	btn.add_theme_color_override("font_color", font_color)
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.set_corner_radius_all(4)
+	btn.add_theme_stylebox_override("normal", style)
+	btn.add_theme_stylebox_override("hover", style)
+	var pressed_style := StyleBoxFlat.new()
+	pressed_style.bg_color = Color(bg_color.r + 0.1, bg_color.g + 0.1, bg_color.b + 0.08, 0.85)
+	pressed_style.set_corner_radius_all(4)
+	btn.add_theme_stylebox_override("pressed", pressed_style)
+	var focus_style := StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("focus", focus_style)
 	return btn
+
+func _on_dir_pressed(dir: Vector2i) -> void:
+	direction_pressed.emit(dir)
+
+func _on_wait_pressed() -> void:
+	wait_pressed.emit()
